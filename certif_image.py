@@ -445,10 +445,29 @@ class Certificate:
         return text_piece
 
 
+    def common_couple_name_fontsize(self, text_piece1, text_piece2, defaut_fontsize, max_width):
+        text_piece1_filled = self.fill_placeholders(text_piece1[0][self.item_lang])
+        text_piece2_filled = self.fill_placeholders(text_piece2[0][self.item_lang])
+        
+        font = ImageFont.truetype(font_paths[text_piece1[1]], defaut_fontsize)
+        fnt_decr = 0
+        spc1 = text_piece1_filled.split(" "); spc2 = text_piece2_filled.split(" ")
+        letters1 = ''.join(spc1); letters2 = ''.join(spc2)
+
+        while text_piece1[3] and text_piece2[3] and ( (font.getsize(letters1)[0] + font.getsize(" ")[0]*len(spc1)*text_piece1[6]) > 0.95*max_width or (font.getsize(letters2)[0] + font.getsize(" ")[0]*len(spc2)*text_piece2[6]) > 0.95*max_width):
+            fnt_decr += 1
+            font = ImageFont.truetype(font_paths[text_piece1[1]], defaut_fontsize - fnt_decr)
+        
+        return defaut_fontsize - fnt_decr
+
+
     def make_certificate_image(self) -> Image:
         content_def = self.certif_content_def[self.certif_type]
         paragraphs = content_def["paragraphs"]
         geometries = content_def["geometries"]
+
+        if self.certif_type == 4: #couple certif 1
+            cople_name_fontsize = self.common_couple_name_fontsize(paragraphs[2][0], paragraphs[3][0], geometries[2][0][0], geometries[2][2])
 
         for i in range(len(paragraphs)):
             offset = [0, 0 + geometries[i][4][0]]
@@ -456,14 +475,17 @@ class Certificate:
                 text_piece = paragraphs[i][j]
                 text_piece_filled = self.fill_placeholders(text_piece[0][self.item_lang])
                 
-                font = ImageFont.truetype(font_paths[text_piece[1]], geometries[i][0][j])
-                fnt_decr = 0
-                spc = text_piece_filled.split(" ")
-                letters = ''.join(spc)
-                while text_piece[3] and (font.getsize(letters)[0] + font.getsize(" ")[0]*len(spc)*text_piece[6]) > geometries[i][2]-0.05*geometries[i][2]:
-                    fnt_decr += 1
-                    font = ImageFont.truetype(font_paths[text_piece[1]], geometries[i][0][j] - fnt_decr)
-                
+                if self.certif_type == 4 and (i in [2, 3]):
+                    font = ImageFont.truetype(font_paths[text_piece[1]], cople_name_fontsize)
+                else:
+                    font = ImageFont.truetype(font_paths[text_piece[1]], geometries[i][0][j])
+                    fnt_decr = 0
+                    spc = text_piece_filled.split(" ")
+                    letters = ''.join(spc)
+                    while text_piece[3] and (font.getsize(letters)[0] + font.getsize(" ")[0]*len(spc)*text_piece[6]) > 0.95*geometries[i][2]:
+                        fnt_decr += 1
+                        font = ImageFont.truetype(font_paths[text_piece[1]], geometries[i][0][j] - fnt_decr)
+
                 new_offset, one_line = self.justified_text_to_image(offset, geometries[i][1], text_piece_filled, font, geometries[i][2], geometries[i][3], text_piece[2], not(text_piece[4]), (i==0 and self.certif_type in [0,1,2,3,4,5] or i==2 and self.certif_type in [5]), text_colors[text_piece[5]], text_piece[6])
                 if not one_line: offset[0] = 0
                 offset[0] += new_offset[0]
@@ -585,7 +607,7 @@ if process_shopify_orders:
     else:
         orders = requests.get(
             "https://{0}@titoli-nobiliari.myshopify.com/admin/api/2021-07/orders.json?since_id={1}&limit={2}&fields=id,order_number,line_items"
-            .format(shopify_api_key, processed_order_ids[-1], 250)).json()["orders"]
+            .format(shopify_apikey, processed_order_ids[-1], 250)).json()["orders"]
 
     #orders.reverse()
 
@@ -620,8 +642,10 @@ if process_shopify_orders:
             ""
             """
             if int(date.split(' ')[2]) > 2031: continue
-            ryearspec = [["nell’anno {0} del".format(ryears[date.split(' ')[2]][item_lang]), "nel"], 
-                        ["{0} year of the ".format(ryears[date.split(' ')[2]][item_lang]), ""]][item_lang][1 if int(date.split(' ')[2]) < 1953 else 0]
+            try:
+                ryearspec = ["nell’anno {0} del".format(ryears[date.split(' ')[2]][item_lang]), "{0} year of the ".format(ryears[date.split(' ')[2]][item_lang])][item_lang]
+            except:
+                ryearspec = ["nel", ""][item_lang]
 
 
             if product_type == "LORD" or product_type == "LADY": #Lord or Lady
@@ -796,8 +820,10 @@ if process_spreadsheet_orders:
                 ""
                 """
                 if int(date.split(' ')[2]) > 2031: continue
-                ryearspec = [["nell’anno {0} del".format(ryears[date.split(' ')[2]][item_lang]), "nel"], 
-                            ["{0} year of the ".format(ryears[date.split(' ')[2]][item_lang]), ""]][item_lang][1 if int(date.split(' ')[2]) < 1953 else 0]
+                try:
+                    ryearspec = ["nell’anno {0} del".format(ryears[date.split(' ')[2]][item_lang]), "{0} year of the ".format(ryears[date.split(' ')[2]][item_lang])][item_lang]
+                except:
+                    ryearspec = ["nel", ""][item_lang]
             except:
                 continue
             
